@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#185abd">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src * data: blob:; font-src 'self' data: https://cdn.jsdelivr.net; connect-src https://api.github.com; object-src 'none'; frame-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src * data: blob:; font-src 'self' data: https://cdn.jsdelivr.net; connect-src https://api.github.com; object-src 'none'; frame-src blob: https://meet.jit.si; base-uri 'none'">
 <title>GitOffice － 純前端雲端辦公套件</title>
 
 <!-- 開源元件（皆來自 GitHub 開源專案，經 jsDelivr CDN 載入）
@@ -161,6 +161,7 @@ dialog .hint ol{margin:4px 0 0;padding-left:18px}
  html,body,#app,.body,main,.ebody,.docwrap,.ql-container{display:block!important;height:auto!important;overflow:visible!important;position:static!important;background:#fff!important}
  .docwrap .ql-editor{box-shadow:none!important;margin:0!important;max-width:none!important;padding:0!important}
 }
+.gt{width:100%;border-collapse:collapse;font-size:13px}.gt th{position:sticky;top:0;z-index:1;background:var(--panel);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);color:var(--muted);font-weight:600}.gt td{padding:3px 6px;border-bottom:1px solid var(--line)}.gt input{width:100%;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
 </style>
 </head>
 <body>
@@ -220,7 +221,7 @@ dialog .hint ol{margin:4px 0 0;padding-left:18px}
  <div class="acts"><button class="btn" onclick="this.closest('dialog').close()">關閉</button></div>
 </div></dialog>
 
-<input type="file" id="upl" multiple hidden accept=".docx,.xlsx,.xls,.csv,.md,.txt,.html,.htm">
+<input type="file" id="upl" multiple hidden accept=".docx,.xlsx,.xls,.csv,.md,.txt,.html,.htm,.mmd,.json">
 
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/x-data-spreadsheet@1.1.9/dist/xspreadsheet.js"></script>
@@ -249,15 +250,32 @@ function askText(title,val='',ok='確定'){return new Promise(res=>{const d=$('#
 function closeMenu(){document.querySelectorAll('.menu').forEach(m=>m.remove())}
 function menu(anchor,items){closeMenu();const m=document.createElement('div');m.className='menu';items.forEach(([l,f])=>{const b=document.createElement('button');b.textContent=l;b.onclick=e=>{e.stopPropagation();closeMenu();f()};m.append(b)});document.body.append(m);const r=anchor.getBoundingClientRect();m.style.top=Math.min(r.bottom+4,innerHeight-m.offsetHeight-8)+'px';m.style.left=Math.max(8,Math.min(r.left,innerWidth-m.offsetWidth-8))+'px';setTimeout(()=>addEventListener('click',closeMenu,{once:true}),0)}
 
+/* ========== 新功能共用常數 ========== */
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const FLOW_TPL={
+ flow:'flowchart TD\n  A[開始] --> B{判斷條件}\n  B -- 是 --> C[執行]\n  B -- 否 --> D[結束]\n  C --> D\n',
+ seq:'sequenceDiagram\n  participant 使用者\n  participant 系統\n  使用者->>系統: 送出申請\n  系統-->>使用者: 回覆結果\n',
+ state:'stateDiagram-v2\n  [*] --> 草稿\n  草稿 --> 審核中\n  審核中 --> 已核准\n  審核中 --> 草稿: 退回\n  已核准 --> [*]\n',
+ er:'erDiagram\n  客戶 ||--o{ 訂單 : 下單\n  訂單 ||--|{ 品項 : 包含\n',
+ gantt:'gantt\n  title 專案時程\n  dateFormat YYYY-MM-DD\n  section 設計\n  需求訪談 :a1, 2025-01-01, 7d\n  section 開發\n  實作 :after a1, 14d\n'};
+const MEET_NOTES='# 會議紀錄\n\n- 日期：\n- 參與者：\n\n## 議程\n\n1. \n\n## 決議\n\n- \n\n## 待辦事項\n\n- [ ] \n';
+const ganttTpl=()=>{const b=new Date(),a=n=>{const d=new Date(b);d.setDate(d.getDate()+n);return ymd(d)};
+ return JSON.stringify({view:'Week',tasks:[{id:'t1',name:'需求與規劃',start:a(0),end:a(4),progress:40,deps:[]},{id:'t2',name:'設計與開發',start:a(5),end:a(15),progress:0,deps:['t1']},{id:'t3',name:'測試與上線',start:a(16),end:a(20),progress:0,deps:['t2']}]})};
+const meetTpl=()=>JSON.stringify({room:'GitOffice-'+Math.random().toString(36).slice(2,14),notes:MEET_NOTES});
+
 /* ========== 檔案類型 ========== */
 const TYPES={
  doc:{ext:'.doc.html',tag:'W',color:'#2b579a',name:'文件',def:'未命名文件',tpl:''},
  sheet:{ext:'.sheet.json',tag:'X',color:'#217346',name:'試算表',def:'未命名試算表',tpl:''},
  slide:{ext:'.slides.md',tag:'P',color:'#c43e1c',name:'簡報',def:'未命名簡報',tpl:'# 簡報標題\n\n副標題 · 作者\n\n---\n\n## 第二頁\n\n- 重點一\n- 重點二\n- 重點三\n\n---\n\n## 謝謝\n\n用 `---` 分隔投影片，支援 Markdown。\n'},
- note:{ext:'.md',tag:'N',color:'#7719aa',name:'筆記',def:'未命名筆記',tpl:'# 新筆記\n\n'}
+ note:{ext:'.md',tag:'N',color:'#7719aa',name:'筆記',def:'未命名筆記',tpl:'# 新筆記\n\n'},
+ flow:{ext:'.flow.mmd',tag:'F',color:'#0b7a75',name:'流程圖',def:'未命名流程圖',tpl:FLOW_TPL.flow},
+ gantt:{ext:'.gantt.json',tag:'G',color:'#d97706',name:'甘特圖',def:'未命名甘特圖',tpl:ganttTpl},
+ web:{ext:'.web.json',tag:'H',color:'#e11d48',name:'網頁設計',def:'未命名網頁',tpl:''},
+ meet:{ext:'.meet.json',tag:'M',color:'#2563eb',name:'會議',def:'未命名會議',tpl:meetTpl}
 };
-function typeOf(n){const l=n.toLowerCase();if(l.endsWith('.doc.html')||l.endsWith('.html'))return'doc';if(l.endsWith('.sheet.json'))return'sheet';if(l.endsWith('.slides.md'))return'slide';if(l.endsWith('.md')||l.endsWith('.txt'))return'note';return null}
-const baseName=n=>n.replace(/(\.doc\.html|\.html|\.sheet\.json|\.slides\.md|\.md|\.txt)$/i,'');
+function typeOf(n){const l=n.toLowerCase();if(l.endsWith('.mmd'))return'flow';if(l.endsWith('.gantt.json'))return'gantt';if(l.endsWith('.web.json'))return'web';if(l.endsWith('.meet.json'))return'meet';if(l.endsWith('.doc.html')||l.endsWith('.html'))return'doc';if(l.endsWith('.sheet.json'))return'sheet';if(l.endsWith('.slides.md'))return'slide';if(l.endsWith('.md')||l.endsWith('.txt'))return'note';return null}
+const baseName=n=>n.replace(/(\.flow\.mmd|\.mmd|\.gantt\.json|\.web\.json|\.meet\.json|\.doc\.html|\.html|\.sheet\.json|\.slides\.md|\.md|\.txt)$/i,'');
 
 /* ========== 設定 ========== */
 const CFG_KEY='gitoffice-cfg';
@@ -336,7 +354,7 @@ function showHome(){
  setNav('home');
  const rc=recents().slice(0,8);
  main.innerHTML=`<div class="page">
-  <div class="hero"><h1>歡迎使用 GitOffice</h1><p>文件、試算表、簡報、筆記 — 純前端運作，資料由你掌控。</p></div>
+  <div class="hero"><h1>歡迎使用 GitOffice</h1><p>文件、試算表、簡報、筆記、流程圖、甘特圖、網頁設計、會議 — 純前端運作，資料由你掌控。</p></div>
   <div class="tiles">${Object.entries(TYPES).map(([k,t])=>`<button class="tile" data-new="${k}"><span class="ico" style="background:${t.color}">${t.tag}</span><b>新增${t.name}</b></button>`).join('')}</div>
   ${isGH()?'':`<div class="banner">目前是<b>本機模式</b>：檔案只存在這個瀏覽器。想跨手機與筆電同步？<button class="btn pri" id="goSet">連接 GitHub</button></div>`}
   <h2 class="sec">最近開啟</h2>
@@ -377,7 +395,7 @@ async function showDrive(dir){
 async function newFile(type,dir){
  const t=TYPES[type];const n=await askText('新增'+t.name,t.def);if(!n)return;
  const p=join(dir,safeName(n)+t.ext);
- try{await FS().create(p,t.tpl);go(hFile(p))}catch(e){toast(e.message)}
+ try{await FS().create(p,typeof t.tpl==='function'?t.tpl():t.tpl);go(hFile(p))}catch(e){toast(e.message)}
 }
 async function newFolder(dir){const n=await askText('新資料夾名稱','新資料夾');if(!n)return;try{await FS().mkdir(join(dir,safeName(n)));showDrive(dir)}catch(e){toast(e.message)}}
 async function renameItem(it,dir){
@@ -402,6 +420,8 @@ $('#upl').onchange=async e=>{
    else if(/\.html?$/.test(l)){type='doc';content=clean(await f.text())}
    else if(l.endsWith('.slides.md')){type='slide';content=await f.text();base=base.replace(/\.slides$/,'')}
    else if(/\.(md|txt)$/.test(l)){type='note';content=await f.text()}
+   else if(l.endsWith('.mmd')){type='flow';content=await f.text();base=base.replace(/\.flow$/,'')}
+   else if(/\.(gantt|web|meet)\.json$/.test(l)){const k=l.match(/\.(gantt|web|meet)\.json$/)[1];type=k;content=await f.text();base=base.replace(new RegExp('\\.'+k+'$'),'')}
    else{toast('略過不支援：'+f.name);continue}
    await FS().create(join(dir,safeName(base)+TYPES[type].ext),content);n++;
   }catch(err){toast(f.name+'：'+err.message)}
@@ -429,7 +449,7 @@ async function openFile(path){
  const c={path,name,type,sha:r.sha,dirty:false,saving:false,again:false,timer:null,ed:null};cur=c;
  const touch=()=>{c.dirty=true;setStatus('編輯中…');clearTimeout(c.timer);c.timer=setTimeout(()=>saveNow(),isGH()?3000:800)};
  try{
-  c.ed=({doc:mountDoc,sheet:mountSheet,slide:(e,x,t2)=>mountMd(e,x,t2,'slide',name),note:(e,x,t2)=>mountMd(e,x,t2,'note',name)})[type]($('#eBody'),r.content,touch,$('#eExtra'));
+  c.ed=({doc:mountDoc,sheet:mountSheet,flow:mountFlow,gantt:mountGantt,web:mountWeb,meet:mountMeet,slide:(e,x,t2)=>mountMd(e,x,t2,'slide',name),note:(e,x,t2)=>mountMd(e,x,t2,'note',name)})[type]($('#eBody'),r.content,touch,$('#eExtra'));
  }catch(e){main.innerHTML=`<div class="center">編輯器載入失敗（可能離線，無法載入 CDN 元件）：${esc(e.message)}</div>`;cur=null;return}
  $('#eBack').onclick=()=>go(hDrive(dirOf(path)));
  $('#eSave').onclick=()=>saveNow(true);
@@ -542,6 +562,127 @@ function present(slides,theme){
  ov.onclick=e=>{e.clientX<innerWidth/3?prev():next()};
  let sx=0;ov.ontouchstart=e=>sx=e.touches[0].clientX;ov.ontouchend=e=>{const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>40){dx<0?next():prev();e.preventDefault()}};
  if(ov.requestFullscreen)ov.requestFullscreen().then(()=>document.addEventListener('fullscreenchange',fs)).catch(()=>{});
+}
+
+/* ========== 外掛函式庫（按需載入，不影響首頁速度） ========== */
+const _lz={},CDN='https://cdn.jsdelivr.net/npm/';
+function lazy(urls){return Promise.all(urls.map(u=>_lz[u]||(_lz[u]=new Promise((ok,no)=>{
+ const css=u.endsWith('.css'),e=document.createElement(css?'link':'script');
+ if(css){e.rel='stylesheet';e.href=u}else e.src=u;
+ e.onload=()=>ok();e.onerror=()=>{delete _lz[u];e.remove();no(new Error('無法載入 '+u.split('/').pop()+'（請檢查網路）'))};document.head.append(e)}))))}
+
+/* ========== 流程圖（Mermaid，MIT） ========== */
+function mountFlow(el,content,touch){
+ el.innerHTML=`<div class="split" data-pane="edit"><div class="mdtools"><select id="fTpl"><option value="">插入範本…</option><option value="flow">流程圖</option><option value="seq">時序圖</option><option value="state">狀態圖</option><option value="er">ER 圖</option><option value="gantt">甘特圖（文字版）</option></select><span style="color:var(--muted);font-size:12px;margin-left:6px;white-space:nowrap">Mermaid 語法 · 即時預覽</span></div><div class="panes"><textarea id="mdIn" spellcheck="false"></textarea><div id="mdOut" class="preview"></div></div><div class="paneTabs"><button data-p="edit" class="on">編輯</button><button data-p="view">預覽</button></div></div>`;
+ const inp=$('#mdIn',el),out=$('#mdOut',el),sp=$('.split',el);inp.value=content;
+ let rt,n=0,svg='',dead=false;
+ const render=async()=>{
+  const my=++n;
+  try{await lazy([CDN+'mermaid@11.4.1/dist/mermaid.min.js'])}catch(e){out.innerHTML='<div class="empty"></div>';out.firstChild.textContent=e.message;return}
+  if(dead||my!==n)return;
+  mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:document.querySelector('[data-theme=dark]')?'dark':'default'});
+  if(!inp.value.trim()){out.innerHTML='<div class="empty">在左側輸入 Mermaid 語法，或用上方「插入範本」</div>';svg='';return}
+  try{const r=await mermaid.render('mm'+my,inp.value);if(dead||my!==n)return;svg=r.svg;out.innerHTML=svg}
+  catch(e){document.getElementById('dmm'+my)?.remove();if(dead||my!==n)return;out.innerHTML='<div class="empty" style="color:#c50f1f;white-space:pre-wrap;text-align:left"></div>';out.firstChild.textContent='語法錯誤：'+(e.message||e)}
+ };
+ render();
+ inp.oninput=()=>{touch();clearTimeout(rt);rt=setTimeout(render,350)};
+ $('#fTpl',el).onchange=e=>{const v=e.target.value;e.target.value='';if(!v)return;if(inp.value.trim()&&!confirm('用範本取代目前內容？'))return;inp.value=FLOW_TPL[v];inp.oninput()};
+ el.querySelectorAll('.paneTabs button').forEach(b=>b.onclick=()=>{sp.dataset.pane=b.dataset.p;el.querySelectorAll('.paneTabs button').forEach(x=>x.classList.toggle('on',x===b))});
+ return{getContent:()=>inp.value,setContent:c=>{inp.value=c;render()},destroy:()=>{dead=true;clearTimeout(rt)},
+  exports:nm=>[['下載 Mermaid 原始檔 (.mmd)',()=>download(nm+'.mmd',inp.value)],['下載 SVG 圖檔',()=>svg?download(nm+'.svg',svg,'image/svg+xml'):toast('尚無可匯出的圖')],
+   ['列印／存成 PDF',()=>{if(!svg)return toast('尚無可匯出的圖');const w=open('','_blank');if(w){w.document.write('<!doctype html><meta charset="utf-8"><title>'+esc(nm)+'</title><body style="margin:1em">'+svg+'</body>');w.document.close();setTimeout(()=>w.print(),400)}}]]};
+}
+
+/* ========== 甘特圖（Frappe Gantt，MIT） ========== */
+function mountGantt(el,content,touch){
+ let data;try{data=JSON.parse(content)}catch{data=null}
+ if(!data||!Array.isArray(data.tasks))data={tasks:[],view:'Week'};
+ data.tasks.forEach(t=>{if(!t.id)t.id='t'+Math.random().toString(36).slice(2,8);if(!Array.isArray(t.deps))t.deps=[]});
+ const T=data.tasks;let g=null,dead=false,rt;
+ el.innerHTML=`<div class="split"><div class="mdtools"><span style="font-size:13px">檢視</span><select id="gView"><option value="Day">日</option><option value="Week">週</option><option value="Month">月</option></select><button class="btn" id="gAdd">＋ 新增任務</button><span style="color:var(--muted);font-size:12px;white-space:nowrap">拖曳長條可調整日期與進度</span></div><div id="gChart" style="flex:1 1 50%;min-height:160px;overflow:auto;background:var(--panel)"></div><div id="gTbl" style="flex:1 1 40%;min-height:120px;overflow:auto;border-top:1px solid var(--line);background:var(--panel)"></div></div>`;
+ const box=$('#gChart',el),tb=$('#gTbl',el),sel=$('#gView',el);sel.value=data.view||'Week';
+ const re=/^\d{4}-\d{2}-\d{2}$/,valid=t=>re.test(t.start||'')&&re.test(t.end||'')&&t.end>=t.start;
+ const rowOf=id=>tb.querySelector('tr[data-id="'+id+'"]');
+ const sync=r=>{const tr=rowOf(r.id);if(!tr)return;for(const f of['start','end','progress']){const i=tr.querySelector('[data-f='+f+']');if(i)i.value=r[f]}};
+ async function draw(force){
+  const rows=T.filter(valid).map(t=>({id:t.id,name:t.name||'(未命名)',start:t.start,end:t.end,progress:+t.progress||0,dependencies:t.deps.filter(d=>T.some(x=>x.id===d&&valid(x))).join(',')}));
+  if(!rows.length){g=null;box.innerHTML='<div class="empty">尚無有效任務，請按「＋ 新增任務」，並確認結束日不早於開始日</div>';return}
+  try{await lazy([CDN+'frappe-gantt@1.0.3/dist/frappe-gantt.css',CDN+'frappe-gantt@1.0.3/dist/frappe-gantt.umd.js'])}catch(e){box.innerHTML='<div class="empty"></div>';box.firstChild.textContent=e.message;return}
+  if(dead)return;
+  if(g&&!force){try{g.refresh(rows);return}catch{}}
+  box.innerHTML='';
+  const opt={view_mode:sel.value,
+   on_date_change:(t,s,e)=>{const r=T.find(x=>x.id===t.id);if(!r)return;r.start=ymd(s);r.end=ymd(e);sync(r);touch()},
+   on_progress_change:(t,p)=>{const r=T.find(x=>x.id===t.id);if(!r)return;r.progress=Math.round(p);sync(r);touch()}};
+  try{g=new Gantt(box,rows,{...opt,language:'zh-TW'})}catch{try{box.innerHTML='';g=new Gantt(box,rows,opt)}catch(e){g=null;box.innerHTML='<div class="empty"></div>';box.firstChild.textContent='甘特圖繪製失敗：'+e.message}}
+ }
+ function table(){
+  tb.innerHTML=`<table class="gt"><thead><tr><th>#</th><th>任務</th><th>開始</th><th>結束</th><th>進度%</th><th>前置(編號)</th><th></th></tr></thead><tbody>${T.map((t,i)=>`<tr data-id="${esc(t.id)}"><td>${i+1}</td><td><input data-f="name" value="${esc(t.name||'')}"></td><td><input type="date" data-f="start" value="${esc(t.start||'')}"></td><td><input type="date" data-f="end" value="${esc(t.end||'')}"></td><td><input type="number" min="0" max="100" data-f="progress" value="${+t.progress||0}" style="width:64px"></td><td><input data-f="deps" value="${esc(t.deps.map(d=>T.findIndex(x=>x.id===d)+1).filter(Boolean).join(','))}" style="width:80px"></td><td><button class="btn" data-del title="刪除">✕</button></td></tr>`).join('')}</tbody></table>`;
+ }
+ tb.addEventListener('input',e=>{const f=e.target.dataset.f,tr=e.target.closest('tr');if(!f||!tr)return;const r=T.find(x=>x.id===tr.dataset.id);if(!r)return;
+  if(f==='deps')r.deps=e.target.value.split(/[,，\s]+/).map(Number).filter(k=>k>=1&&k<=T.length&&T[k-1].id!==r.id).map(k=>T[k-1].id);
+  else if(f==='progress')r.progress=Math.max(0,Math.min(100,+e.target.value||0));
+  else r[f]=e.target.value;
+  touch();clearTimeout(rt);rt=setTimeout(()=>draw(),400)});
+ tb.addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;const id=b.closest('tr').dataset.id;const i=T.findIndex(x=>x.id===id);if(i<0)return;T.splice(i,1);T.forEach(x=>x.deps=x.deps.filter(d=>d!==id));table();draw(true);touch()});
+ $('#gAdd',el).onclick=()=>{const s=new Date(),e2=new Date();e2.setDate(e2.getDate()+6);T.push({id:'t'+Math.random().toString(36).slice(2,8),name:'新任務',start:ymd(s),end:ymd(e2),progress:0,deps:[]});table();draw(true);touch()};
+ sel.onchange=()=>{data.view=sel.value;if(g)try{g.change_view_mode(sel.value)}catch{draw(true)}touch()};
+ table();draw();
+ const csv=()=>'\ufeff'+['編號,任務,開始,結束,進度,前置'].concat(T.map((t,i)=>[i+1,t.name,t.start,t.end,t.progress||0,t.deps.map(d=>T.findIndex(x=>x.id===d)+1).filter(Boolean).join(' ')].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(','))).join('\n');
+ return{getContent:()=>JSON.stringify({view:data.view,tasks:T}),
+  setContent:c=>{try{const d=JSON.parse(c);if(!Array.isArray(d.tasks))return;T.length=0;d.tasks.forEach(t=>{t.deps=Array.isArray(t.deps)?t.deps:[];T.push(t)});data.view=d.view||data.view;sel.value=data.view||'Week';table();draw(true)}catch{}},
+  destroy:()=>{dead=true;clearTimeout(rt)},
+  exports:n=>[['下載 CSV',()=>download(n+'.csv',csv(),'text/csv')],['下載原始 JSON',()=>download(n+'.gantt.json',JSON.stringify({view:data.view,tasks:T}),'application/json')]]};
+}
+
+/* ========== 網頁設計（GrapesJS，BSD-3-Clause） ========== */
+function mountWeb(el,content,touch){
+ let data=null;try{data=JSON.parse(content)}catch{}
+ if(!data||typeof data!=='object'||!Object.keys(data).length)data=null;
+ el.innerHTML='<div id="gjsBox" style="position:absolute;inset:0"><div class="center">載入網頁編輯器…</div></div>';
+ const box=$('#gjsBox',el);let ed=null,ready=false,dead=false;
+ (async()=>{try{
+  await lazy([CDN+'grapesjs@0.21.13/dist/css/grapes.min.css',CDN+'font-awesome@4.7.0/css/font-awesome.min.css',CDN+'grapesjs@0.21.13/dist/grapes.min.js']);
+  await lazy([CDN+'grapesjs-blocks-basic@1.0.2/dist/index.js']);
+  if(dead)return;box.innerHTML='';
+  const opt={container:box,height:'100%',width:'auto',storageManager:false,plugins:['gjs-blocks-basic'],pluginsOpts:{'gjs-blocks-basic':{flexGrid:true}}};
+  if(data)opt.projectData=data;else opt.components='<section style="padding:80px 20px;text-align:center;font-family:sans-serif"><h1>我的網頁</h1><p>從右側「區塊」拖曳元件，或直接點選文字修改。</p></section>';
+  ed=grapesjs.init(opt);
+  ed.on('load',()=>setTimeout(()=>{ready=true},600));
+  ed.on('update',()=>{if(ready)touch()});
+ }catch(e){box.innerHTML='<div class="center"></div>';box.firstChild.textContent='載入失敗：'+e.message}})();
+ const full=n=>'<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(n)+'</title><style>'+ed.getCss()+'</style></head>'+ed.getHtml()+'</html>';
+ return{getContent:()=>ed?JSON.stringify(ed.getProjectData()):content,
+  setContent:c=>{try{ed&&ed.loadProjectData(JSON.parse(c))}catch{}},
+  destroy:()=>{dead=true;try{ed&&ed.destroy()}catch{}},
+  exports:n=>[['下載網頁 (.html)',()=>ed?download(n+'.html',full(n),'text/html'):toast('編輯器尚未載入')],['下載專案 JSON',()=>ed?download(n+'.web.json',JSON.stringify(ed.getProjectData()),'application/json'):toast('編輯器尚未載入')]]};
+}
+
+/* ========== 會議（Jitsi Meet，Apache-2.0，iframe 嵌入） ========== */
+function mountMeet(el,content,touch){
+ let d;try{d=JSON.parse(content)}catch{d={}}
+ if(!d||typeof d!=='object')d={};
+ d.room=d.room||('GitOffice-'+Math.random().toString(36).slice(2,14));d.notes=d.notes??MEET_NOTES;
+ el.innerHTML=`<div class="split" data-pane="view"><div class="mdtools"><input id="mRoom" style="min-width:190px;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)" title="房間名稱"><button class="btn pri" id="mJoin">▶ 加入會議</button><button class="btn" id="mCopy">複製邀請連結</button><button class="btn" id="mOpen">新分頁開啟</button><button class="btn" id="mNew">換新房間</button></div><div class="panes"><div id="mdOut" style="flex:2 1 60%;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden"></div><textarea id="mdIn" spellcheck="false" style="flex:1 1 30%;min-width:240px;padding:12px;border:0;border-left:1px solid var(--line);background:var(--panel);resize:none" placeholder="會議紀錄（Markdown）"></textarea></div><div class="paneTabs"><button data-p="edit">紀錄</button><button data-p="view" class="on">會議</button></div></div>`;
+ const room=$('#mRoom',el),stage=$('#mdOut',el),notes=$('#mdIn',el),join=$('#mJoin',el),sp=$('.split',el);
+ room.value=d.room;notes.value=d.notes;let on=false;
+ const url=()=>'https://meet.jit.si/'+encodeURIComponent(d.room);
+ const idle=()=>{stage.innerHTML='<div class="empty" style="max-width:420px;line-height:1.7">按「加入會議」開始視訊。<br>把「複製邀請連結」傳給與會者即可同房。<br><small>房間名稱即密碼：請勿放在公開儲存庫。公開的 meet.jit.si 若要求主持人登入，請依畫面指示登入。</small></div>'};
+ const leave=()=>{on=false;idle();join.textContent='▶ 加入會議';join.classList.add('pri')};
+ const go=()=>{const f=document.createElement('iframe');f.src=url()+'#config.prejoinConfig.enabled=true';f.allow='camera; microphone; display-capture; fullscreen; autoplay; clipboard-write';f.style.cssText='border:0;width:100%;height:100%';stage.innerHTML='';stage.append(f);on=true;join.textContent='■ 離開會議';join.classList.remove('pri')};
+ idle();
+ join.onclick=()=>on?leave():go();
+ room.onchange=()=>{const v=room.value.replace(/[^\p{L}\p{N}_-]/gu,'');if(!v){room.value=d.room;return}room.value=v;if(on)leave();d.room=v;touch()};
+ $('#mCopy',el).onclick=()=>navigator.clipboard.writeText(url()).then(()=>toast('已複製邀請連結'),()=>toast(url()));
+ $('#mOpen',el).onclick=()=>window.open(url(),'_blank','noopener');
+ $('#mNew',el).onclick=()=>{if(on)leave();d.room='GitOffice-'+Math.random().toString(36).slice(2,14);room.value=d.room;touch()};
+ notes.oninput=()=>{d.notes=notes.value;touch()};
+ el.querySelectorAll('.paneTabs button').forEach(b=>b.onclick=()=>{sp.dataset.pane=b.dataset.p;el.querySelectorAll('.paneTabs button').forEach(x=>x.classList.toggle('on',x===b))});
+ return{getContent:()=>JSON.stringify({room:d.room,notes:d.notes}),
+  setContent:c=>{try{const x=JSON.parse(c);if(on)leave();d.room=x.room||d.room;d.notes=x.notes??'';room.value=d.room;notes.value=d.notes}catch{}},
+  destroy:()=>{try{leave()}catch{}},
+  exports:n=>[['下載會議紀錄 (.md)',()=>download(n+'.md','# '+n+'\n\n會議連結：'+url()+'\n\n'+d.notes,'text/markdown')],['下載原始 JSON',()=>download(n+'.meet.json',JSON.stringify({room:d.room,notes:d.notes}),'application/json')]]};
 }
 
 /* ========== 設定對話框 ========== */
