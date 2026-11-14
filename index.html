@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#185abd">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src * data: blob:; font-src 'self' data: https://cdn.jsdelivr.net; connect-src https://api.github.com; object-src 'none'; frame-src 'none'; base-uri 'none'">
+<title>GitOffice － 純前端雲端辦公套件</title>
+
+<!-- 開源元件（皆來自 GitHub 開源專案，經 jsDelivr CDN 載入）
+     Quill (slab/quill, BSD-3) · x-spreadsheet (myliang/x-spreadsheet, MIT) · SheetJS (SheetJS/sheetjs, Apache-2.0)
+     marked (markedjs/marked, MIT) · DOMPurify (cure53/DOMPurify, Apache-2.0/MPL) · mammoth.js (mwilliamson/mammoth.js, BSD-2)
+     匯出簡報使用 reveal.js (hakimel/reveal.js, MIT) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/x-data-spreadsheet@1.1.9/dist/xspreadsheet.css">
+
+<style>
+:root{--bg:#f3f2f1;--panel:#fff;--text:#201f1e;--muted:#605e5c;--line:#e1dfdd;--brand:#185abd;--hover:#eef3fb;--radius:10px}
+[data-theme=dark]{--bg:#1b1a19;--panel:#252423;--text:#f3f2f1;--muted:#a19f9d;--line:#3b3a39;--brand:#4f93ff;--hover:#2f2e2d}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+header.top{flex:none;height:48px;background:#185abd;color:#fff;display:flex;align-items:center;gap:8px;padding:0 10px;padding-top:env(safe-area-inset-top)}
+header.top .logo{font-weight:700;letter-spacing:.3px;cursor:pointer;white-space:nowrap}
+header.top .sp{flex:1}
+.hbtn{background:transparent;border:0;color:#fff;width:36px;height:36px;border-radius:8px;font-size:18px;display:grid;place-items:center}
+.hbtn:hover{background:rgba(255,255,255,.18)}
+#chip{font-size:12px;background:rgba(255,255,255,.2);padding:3px 10px;border-radius:99px;max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.body{flex:1;min-height:0;display:flex;position:relative}
+aside{width:220px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:10px;display:flex;flex-direction:column;gap:2px;z-index:20}
+aside .nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:0;background:none;text-align:left;width:100%}
+aside .nav:hover{background:var(--hover)}
+aside .nav.on{background:var(--hover);color:var(--brand);font-weight:600}
+aside .grow{flex:1}
+aside small{color:var(--muted);padding:8px 12px;display:block}
+#scrim{display:none}
+main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.page{flex:1;overflow:auto;padding:20px;max-width:1100px;width:100%;margin:0 auto}
+.center{display:grid;place-items:center;flex:1;color:var(--muted)}
+h2.sec{font-size:16px;margin:22px 0 10px;color:var(--muted);font-weight:600}
+.hero h1{margin:0 0 4px;font-size:24px}
+.hero p{margin:0;color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:16px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;transition:.15s}
+.tile:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.1)}
+.ico{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;color:#fff;font-weight:700;flex:none}
+.ico.dir{background:none;font-size:26px}
+.tile .ico{width:48px;height:48px;font-size:22px}
+.banner{margin-top:16px;padding:12px 14px;border-radius:var(--radius);background:var(--hover);border:1px solid var(--line);font-size:14px}
+.banner button{margin-left:6px}
+.btn{border:1px solid var(--line);background:var(--panel);padding:7px 14px;border-radius:8px}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.danger{color:#c4314b}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.toolbar input[type=search]{flex:1;min-width:140px;padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.crumbs{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:14px}
+.crumbs a{color:var(--brand);cursor:pointer;padding:2px 4px;border-radius:4px}
+.crumbs a:hover{background:var(--hover)}
+.list{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.item:last-child{border:0}
+.item:hover{background:var(--hover)}
+.item .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .meta{color:var(--muted);font-size:12px;white-space:nowrap}
+.item .more{border:0;background:none;width:32px;height:32px;border-radius:6px;font-size:18px;color:var(--muted)}
+.item .more:hover{background:var(--line)}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+/* editor shell */
+.ehead{flex:none;display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto}
+.ehead .ttl{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw}
+.ehead .st{color:var(--muted);font-size:12px;white-space:nowrap;flex:1;min-width:60px}
+.ehead .btn{padding:5px 10px;white-space:nowrap}
+.ebody{flex:1;min-height:0;position:relative}
+/* doc */
+.docwrap{position:absolute;inset:0;display:flex;flex-direction:column;background:#e6e8eb}
+.docwrap .ql-toolbar.ql-snow{flex:none;background:#fff;border:0;border-bottom:1px solid #ddd;color:#222}
+.docwrap .ql-container.ql-snow{flex:1;min-height:0;overflow:auto;border:0;font-size:16px;font-family:inherit}
+.docwrap .ql-editor{height:auto;overflow:visible;max-width:816px;min-height:1056px;margin:16px auto;padding:56px 64px;background:#fff;color:#111;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.docwrap .foot{flex:none;padding:3px 12px;font-size:12px;background:#fff;color:#555;border-top:1px solid #ddd}
+@media(max-width:700px){.docwrap .ql-editor{margin:0;padding:20px 16px;min-height:100%;box-shadow:none}}
+/* md split */
+.split{position:absolute;inset:0;display:flex;flex-direction:column}
+.mdtools{flex:none;display:flex;gap:4px;padding:6px 8px;overflow-x:auto;border-bottom:1px solid var(--line);background:var(--panel);align-items:center}
+.mdtools .btn{padding:3px 10px;white-space:nowrap}
+.mdtools select{padding:3px 6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.panes{flex:1;min-height:0;display:flex}
+.panes>*{flex:1;min-width:0;overflow:auto}
+#mdIn{border:0;resize:none;padding:16px;font:14px/1.65 ui-monospace,Menlo,Consolas,monospace;background:var(--panel);outline:0;border-right:1px solid var(--line)}
+.preview{padding:16px;background:var(--bg)}
+.paneTabs{display:none;flex:none;border-top:1px solid var(--line);background:var(--panel)}
+.paneTabs button{flex:1;border:0;background:none;padding:10px}
+.paneTabs button.on{color:var(--brand);font-weight:700;box-shadow:inset 0 2px 0 var(--brand)}
+@media(max-width:899px){.paneTabs{display:flex}.split[data-pane=edit] #mdOut{display:none}.split[data-pane=view] #mdIn{display:none}}
+.md{max-width:820px;margin:0 auto;background:var(--panel);padding:24px 28px;border-radius:var(--radius);border:1px solid var(--line);word-wrap:break-word}
+.md h1,.md h2,.md h3{line-height:1.25}
+.md pre{background:var(--bg);padding:12px;border-radius:8px;overflow:auto}
+.md code{background:var(--bg);padding:1px 5px;border-radius:4px}
+.md pre code{padding:0}
+.md blockquote{margin:0;padding-left:14px;border-left:4px solid var(--line);color:var(--muted)}
+.md table,.slide table{border-collapse:collapse}
+.md td,.md th,.slide td,.slide th{border:1px solid var(--line);padding:4px 10px}
+.md img{max-width:100%}
+/* slides */
+.slide{aspect-ratio:16/9;container-type:inline-size;background:#fff;color:#1f2937;border-radius:8px;overflow:hidden;position:relative;box-shadow:0 2px 10px rgba(0,0,0,.15);margin:0 auto 16px;max-width:760px}
+.slide.dark{background:#111827;color:#f9fafb}
+.slide.brand{background:linear-gradient(135deg,#185abd,#7719aa);color:#fff}
+.slide .sc{position:absolute;inset:0;padding:6cqw 7cqw;font-size:2.5cqw;line-height:1.45;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.slide .sc>*{margin:.3em 0}
+.slide h1{font-size:5.4cqw;margin:0 0 .3em;line-height:1.15}
+.slide h2{font-size:4cqw;line-height:1.2}
+.slide h3{font-size:3cqw}
+.slide.title .sc{text-align:center;align-items:center}
+.slide img{max-width:100%;max-height:48cqw;object-fit:contain}
+.slide pre{background:rgba(127,127,127,.2);padding:1.2cqw;border-radius:6px;font-size:2cqw;overflow:hidden}
+.slide ul,.slide ol{padding-left:1.4em}
+.slide .sn{position:absolute;right:2cqw;bottom:1cqw;font-size:1.6cqw;opacity:.5}
+.slides{background:var(--bg)}
+.present{position:fixed;inset:0;background:#000;z-index:100;display:flex;align-items:center;justify-content:center;touch-action:pan-y}
+.present .slide{width:min(100vw,calc(100vh*16/9));max-width:none;margin:0;border-radius:0;box-shadow:none}
+.pbar{position:absolute;bottom:10px;right:10px;display:flex;gap:6px;opacity:.35;transition:.2s}
+.pbar:hover{opacity:1}
+.pbar button{background:#333;border:0;color:#fff;padding:8px 14px;border-radius:8px}
+/* misc */
+.menu{position:fixed;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.25);padding:4px;min-width:150px}
+.menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:9px 12px;border-radius:6px}
+.menu button:hover{background:var(--hover)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#323130;color:#fff;padding:10px 18px;border-radius:8px;z-index:300;display:none;max-width:90vw;font-size:14px}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--text);padding:0;width:min(520px,94vw);max-height:90vh}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog form,dialog .dbody{padding:18px 20px;display:flex;flex-direction:column;gap:10px;max-height:86vh;overflow:auto}
+dialog h3{margin:0}
+dialog label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+dialog input[type=text],dialog input[type=password],dialog input:not([type]){padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+dialog .row{display:flex;gap:8px}
+dialog .row>*{flex:1}
+dialog .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;flex-wrap:wrap}
+dialog .hint{font-size:12.5px;color:var(--muted);background:var(--bg);border-radius:8px;padding:10px 12px}
+dialog .hint ol{margin:4px 0 0;padding-left:18px}
+.radio{display:flex;gap:14px;flex-direction:row!important;color:var(--text)!important;font-size:15px!important}
+.hist{display:flex;flex-direction:column;gap:2px}
+.hist button{text-align:left;border:0;background:none;padding:8px 10px;border-radius:8px}
+.hist button:hover{background:var(--hover)}
+.hist small{color:var(--muted);display:block}
+/* mobile */
+@media(max-width:800px){
+ aside{position:fixed;top:48px;bottom:0;left:0;transform:translateX(-100%);transition:.2s;box-shadow:0 0 30px rgba(0,0,0,.3)}
+ body.nav aside{transform:none}
+ body.nav #scrim{display:block;position:fixed;inset:48px 0 0 0;background:rgba(0,0,0,.35);z-index:15}
+ .page{padding:14px}
+ .item .meta{display:none}
+}
+@media(min-width:801px){#menuBtn{display:none}}
+@media print{
+ header.top,aside,.ehead,.ql-toolbar,.docwrap .foot,#toast{display:none!important}
+ html,body,#app,.body,main,.ebody,.docwrap,.ql-container{display:block!important;height:auto!important;overflow:visible!important;position:static!important;background:#fff!important}
+ .docwrap .ql-editor{box-shadow:none!important;margin:0!important;max-width:none!important;padding:0!important}
+}
+</style>
+</head>
+<body>
+<div id="app">
+ <header class="top">
+  <button class="hbtn" id="menuBtn" title="選單">☰</button>
+  <span class="logo" id="logo">▦ GitOffice</span>
+  <span class="sp"></span>
+  <span id="chip"></span>
+  <button class="hbtn" id="themeBtn" title="深色／淺色">◐</button>
+  <button class="hbtn" id="setBtn" title="設定">⚙</button>
+ </header>
+ <div class="body">
+  <aside>
+   <button class="nav" data-nav="home">🏠 首頁</button>
+   <button class="nav" data-nav="drive">☁ 雲端硬碟</button>
+   <button class="nav" data-nav="settings">⚙ 儲存設定</button>
+   <span class="grow"></span>
+   <small>資料只存在你的瀏覽器或你自己的 GitHub 儲存庫，沒有任何伺服器。</small>
+  </aside>
+  <div id="scrim"></div>
+  <main id="main"></main>
+ </div>
+</div>
+
+<div id="toast"></div>
+
+<dialog id="dlgAsk"><form method="dialog">
+ <h3 id="askT"></h3><input id="askI" autocomplete="off">
+ <div class="acts"><button class="btn" value="cancel">取消</button><button class="btn pri" value="ok">確定</button></div>
+</form></dialog>
+
+<dialog id="dlgSet"><div class="dbody">
+ <h3>儲存設定</h3>
+ <label class="radio"><span><input type="radio" name="mode" value="local"> 本機模式（瀏覽器 localStorage）</span></label>
+ <label class="radio"><span><input type="radio" name="mode" value="github"> GitHub 雲端模式（Git 當資料庫）</span></label>
+ <div id="ghFields" style="display:none;gap:10px;flex-direction:column">
+  <div class="row"><label>帳號／組織<input id="fOwner" placeholder="octocat"></label><label>儲存庫<input id="fRepo" placeholder="my-drive"></label></div>
+  <div class="row"><label>分支<input id="fBranch" placeholder="main"></label><label>資料夾<input id="fRoot" placeholder="drive（留空＝根目錄）"></label></div>
+  <label>Personal Access Token<input id="fToken" type="password" placeholder="github_pat_…" autocomplete="off"></label>
+  <label class="radio"><span><input type="checkbox" id="fRemember"> 在這台裝置記住 Token（未勾選則關閉分頁後需重新輸入）</span></label>
+  <div class="hint"><b>快速設定</b>
+   <ol>
+    <li>在 GitHub 建立<b>私人（Private）</b>儲存庫，例如 <code>my-drive</code>，並建立 <code>main</code> 分支（勾選 Add README 即可）。</li>
+    <li>Settings → Developer settings → <b>Fine-grained tokens</b> → 只授權該儲存庫，權限 <i>Contents: Read and write</i>。</li>
+    <li>填入上方欄位後按「測試連線」。每次儲存都是一次 Git commit，可在「歷史」還原舊版。</li>
+   </ol>
+   <p style="margin:8px 0 0">⚠ 若儲存庫是公開的，所有文件都會被公開。Token 只存在本機瀏覽器，請勿在公用電腦記住它。</p>
+  </div>
+  <div id="testRes" class="hint" style="display:none"></div>
+ </div>
+ <div class="acts"><button class="btn" id="setTest" style="display:none">測試連線</button><button class="btn" id="setCancel">關閉</button><button class="btn pri" id="setSave">儲存設定</button></div>
+</div></dialog>
+
+<dialog id="dlgHist"><div class="dbody">
+ <h3>Git 歷史版本</h3><div id="histList" class="hist">載入中…</div>
+ <div class="acts"><button class="btn" onclick="this.closest('dialog').close()">關閉</button></div>
+</div></dialog>
+
+<input type="file" id="upl" multiple hidden accept=".docx,.xlsx,.xls,.csv,.md,.txt,.html,.htm">
+
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/x-data-spreadsheet@1.1.9/dist/xspreadsheet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/x-data-spreadsheet@1.1.9/dist/locale/zh-cn.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+<script>
+'use strict';
+/* ========== 工具 ========== */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const main=$('#main');
+const safeName=s=>s.replace(/[\\/:*?"<>|]/g,'_').trim();
+const clean=h=>DOMPurify.sanitize(h);
+const md=s=>clean(marked.parse(s||'',{gfm:true,breaks:true}));
+const join=(a,b)=>a?a+'/'+b:b;
+const dirOf=p=>p.includes('/')?p.slice(0,p.lastIndexOf('/')):'';
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>t.style.display='none',3200)}
+function download(name,content,mime='text/plain'){const a=document.createElement('a');a.href=URL.createObjectURL(content instanceof Blob?content:new Blob([content],{type:mime+';charset=utf-8'}));a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+function b64enc(s){const b=new TextEncoder().encode(s);let bin='';b.forEach(c=>bin+=String.fromCharCode(c));return btoa(bin)}
+function b64dec(b){const bin=atob(b.replace(/\n/g,''));return new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)))}
+function askText(title,val='',ok='確定'){return new Promise(res=>{const d=$('#dlgAsk');$('#askT').textContent=title;const i=$('#askI');i.value=val;d.returnValue='';d.showModal();i.select();d.onclose=()=>res(d.returnValue==='ok'?i.value.trim():null)})}
+function closeMenu(){document.querySelectorAll('.menu').forEach(m=>m.remove())}
+function menu(anchor,items){closeMenu();const m=document.createElement('div');m.className='menu';items.forEach(([l,f])=>{const b=document.createElement('button');b.textContent=l;b.onclick=e=>{e.stopPropagation();closeMenu();f()};m.append(b)});document.body.append(m);const r=anchor.getBoundingClientRect();m.style.top=Math.min(r.bottom+4,innerHeight-m.offsetHeight-8)+'px';m.style.left=Math.max(8,Math.min(r.left,innerWidth-m.offsetWidth-8))+'px';setTimeout(()=>addEventListener('click',closeMenu,{once:true}),0)}
+
+/* ========== 檔案類型 ========== */
+const TYPES={
+ doc:{ext:'.doc.html',tag:'W',color:'#2b579a',name:'文件',def:'未命名文件',tpl:''},
+ sheet:{ext:'.sheet.json',tag:'X',color:'#217346',name:'試算表',def:'未命名試算表',tpl:''},
+ slide:{ext:'.slides.md',tag:'P',color:'#c43e1c',name:'簡報',def:'未命名簡報',tpl:'# 簡報標題\n\n副標題 · 作者\n\n---\n\n## 第二頁\n\n- 重點一\n- 重點二\n- 重點三\n\n---\n\n## 謝謝\n\n用 `---` 分隔投影片，支援 Markdown。\n'},
+ note:{ext:'.md',tag:'N',color:'#7719aa',name:'筆記',def:'未命名筆記',tpl:'# 新筆記\n\n'}
+};
+function typeOf(n){const l=n.toLowerCase();if(l.endsWith('.doc.html')||l.endsWith('.html'))return'doc';if(l.endsWith('.sheet.json'))return'sheet';if(l.endsWith('.slides.md'))return'slide';if(l.endsWith('.md')||l.endsWith('.txt'))return'note';return null}
+const baseName=n=>n.replace(/(\.doc\.html|\.html|\.sheet\.json|\.slides\.md|\.md|\.txt)$/i,'');
+
+/* ========== 設定 ========== */
+const CFG_KEY='gitoffice-cfg';
+let cfg=Object.assign({mode:'local',owner:'',repo:'',branch:'main',root:'drive',token:'',remember:false},JSON.parse(localStorage.getItem(CFG_KEY)||'{}'));
+if(!cfg.token)cfg.token=sessionStorage.getItem('gitoffice-token')||'';
+function persistCfg(){const c={...cfg};if(!cfg.remember){delete c.token;cfg.token?sessionStorage.setItem('gitoffice-token',cfg.token):sessionStorage.removeItem('gitoffice-token')}localStorage.setItem(CFG_KEY,JSON.stringify(c))}
+const isGH=()=>cfg.mode==='github'&&cfg.owner&&cfg.repo;
+const storeId=()=>isGH()?`gh:${cfg.owner}/${cfg.repo}@${cfg.branch}`:'local';
+function updateChip(){$('#chip').textContent=isGH()?`☁ ${cfg.owner}/${cfg.repo}`:'💾 本機模式'}
+
+/* ========== 儲存層：本機 ========== */
+const L={
+ k:p=>'gofs:'+p,
+ async list(dir,all){const pre=dir?dir+'/':'';const seen=new Map();
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k.startsWith('gofs:'))continue;const p=k.slice(5);if(!p.startsWith(pre))continue;const rest=p.slice(pre.length),j=rest.indexOf('/');
+   if(j<0){if(all||rest!=='.gitkeep')seen.set(rest,{name:rest,path:p,type:'file',size:(localStorage.getItem(k)||'').length})}
+   else{const n=rest.slice(0,j);seen.set(n,{name:n,path:pre+n,type:'dir'})}}
+  return [...seen.values()]},
+ async read(p){const v=localStorage.getItem(this.k(p));if(v===null)throw new Error('找不到檔案');return{content:v,sha:null}},
+ async write(p,c){try{localStorage.setItem(this.k(p),c)}catch{throw new Error('瀏覽器儲存空間已滿，請改用 GitHub 模式或刪除檔案')}return{sha:null}},
+ async create(p,c){if(localStorage.getItem(this.k(p))!==null)throw new Error('同名檔案已存在');return this.write(p,c)},
+ async remove(p){localStorage.removeItem(this.k(p))},
+ async mkdir(p){await this.write(p+'/.gitkeep','')}
+};
+/* ========== 儲存層：GitHub（Git 當資料庫） ========== */
+const G={
+ api(){return `https://api.github.com/repos/${cfg.owner}/${cfg.repo}`},
+ full(p){return [cfg.root,p].filter(Boolean).join('/')},
+ u(p,q=''){const f=this.full(p);return this.api()+'/contents'+(f?'/'+f.split('/').map(encodeURIComponent).join('/'):'')+q},
+ ref(){return '?ref='+encodeURIComponent(cfg.branch)},
+ async req(url,{method='GET',body,raw}={}){
+  const h={Accept:raw?'application/vnd.github.raw+json':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
+  if(cfg.token)h.Authorization='Bearer '+cfg.token;
+  if(body)h['Content-Type']='application/json';
+  const r=await fetch(url,{method,headers:h,body:body?JSON.stringify(body):undefined,cache:'no-store'});
+  if(!r.ok){let m='';try{m=(await r.json()).message}catch{}const e=new Error(`GitHub ${r.status}：${m||r.statusText}`);e.status=r.status;throw e}
+  return raw?r.text():r.json()},
+ async list(dir,all){try{const j=await this.req(this.u(dir,this.ref()));if(!Array.isArray(j))return[];const rl=cfg.root?cfg.root.length+1:0;
+   return j.filter(x=>all||x.name!=='.gitkeep').map(x=>({name:x.name,path:x.path.slice(rl),type:x.type==='dir'?'dir':'file',sha:x.sha,size:x.size}))}
+  catch(e){if(e.status===404&&!dir)return[];throw e}},
+ async read(p,ref){const q='?ref='+encodeURIComponent(ref||cfg.branch);const j=await this.req(this.u(p,q));
+  if(j.encoding==='base64'&&j.content)return{content:b64dec(j.content),sha:j.sha};
+  return{content:await this.req(this.u(p,q),{raw:true}),sha:j.sha}},
+ async write(p,content,sha,msg){const body={message:msg||'Update '+p,content:b64enc(content),branch:cfg.branch};if(sha)body.sha=sha;
+  const j=await this.req(this.u(p),{method:'PUT',body});return{sha:j.content.sha}},
+ async create(p,c){try{return await this.write(p,c,null,'Create '+p)}catch(e){if(e.status===422||e.status===409)throw new Error('同名檔案已存在');throw e}},
+ async remove(p,sha){if(!sha)sha=(await this.read(p)).sha;await this.req(this.u(p),{method:'DELETE',body:{message:'Delete '+p,sha,branch:cfg.branch}})},
+ async mkdir(p){await this.write(p+'/.gitkeep','\n',null,'Create folder '+p)},
+ async history(p){return this.req(`${this.api()}/commits?path=${encodeURIComponent(this.full(p))}&sha=${encodeURIComponent(cfg.branch)}&per_page=30`)}
+};
+const FS=()=>isGH()?G:L;
+async function rmDir(dir){for(const it of await FS().list(dir,true)){it.type==='dir'?await rmDir(it.path):await FS().remove(it.path,it.sha)}}
+
+/* ========== 最近開啟 ========== */
+const recents=()=>JSON.parse(localStorage.getItem('go-recent')||'[]').filter(r=>r.store===storeId());
+function pushRecent(path){let a=JSON.parse(localStorage.getItem('go-recent')||'[]').filter(r=>!(r.store===storeId()&&r.path===path));a.unshift({path,store:storeId(),t:Date.now()});localStorage.setItem('go-recent',JSON.stringify(a.slice(0,60)))}
+function dropRecent(path){localStorage.setItem('go-recent',JSON.stringify(JSON.parse(localStorage.getItem('go-recent')||'[]').filter(r=>!(r.store===storeId()&&r.path===path))))}
+
+/* ========== 路由 ========== */
+const hDrive=d=>'#/drive'+(d?'/'+d.split('/').map(encodeURIComponent).join('/'):'');
+const hFile=p=>'#/file/'+p.split('/').map(encodeURIComponent).join('/');
+function go(h){location.hash===h?route():location.hash=h}
+function setNav(n){document.querySelectorAll('aside .nav').forEach(b=>b.classList.toggle('on',b.dataset.nav===n))}
+let routeSeq=0;
+async function route(){
+ const my=++routeSeq;await closeEditor();document.body.classList.remove('nav');if(my!==routeSeq)return;
+ const h=decodeURIComponent(location.hash.slice(1))||'/home';
+ if(h.startsWith('/file/'))return openFile(h.slice(6));
+ if(h.startsWith('/drive'))return showDrive(h.slice(7).replace(/^\/+|\/+$/g,''));
+ showHome();
+}
+addEventListener('hashchange',route);
+
+/* ========== 首頁 ========== */
+function showHome(){
+ setNav('home');
+ const rc=recents().slice(0,8);
+ main.innerHTML=`<div class="page">
+  <div class="hero"><h1>歡迎使用 GitOffice</h1><p>文件、試算表、簡報、筆記 — 純前端運作，資料由你掌控。</p></div>
+  <div class="tiles">${Object.entries(TYPES).map(([k,t])=>`<button class="tile" data-new="${k}"><span class="ico" style="background:${t.color}">${t.tag}</span><b>新增${t.name}</b></button>`).join('')}</div>
+  ${isGH()?'':`<div class="banner">目前是<b>本機模式</b>：檔案只存在這個瀏覽器。想跨手機與筆電同步？<button class="btn pri" id="goSet">連接 GitHub</button></div>`}
+  <h2 class="sec">最近開啟</h2>
+  <div class="list">${rc.length?rc.map(r=>{const n=r.path.split('/').pop(),t=typeOf(n);return `<div class="item" data-open="${esc(r.path)}"><span class="ico" style="background:${t?TYPES[t].color:'#888'}">${t?TYPES[t].tag:'?'}</span><span class="nm">${esc(baseName(n))}</span><span class="meta">${esc(dirOf(r.path)||'/')}</span></div>`}).join(''):'<div class="empty">還沒有最近開啟的檔案</div>'}</div>
+ </div>`;
+ main.querySelectorAll('[data-new]').forEach(b=>b.onclick=()=>newFile(b.dataset.new,''));
+ main.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>go(hFile(b.dataset.open)));
+ const gs=$('#goSet');if(gs)gs.onclick=openSettings;
+}
+
+/* ========== 雲端硬碟 ========== */
+async function showDrive(dir){
+ setNav('drive');
+ main.innerHTML=`<div class="page"><div class="crumbs" id="crumbs"></div>
+  <div class="toolbar"><input type="search" id="q" placeholder="搜尋此資料夾…"><button class="btn pri" id="bNew">＋ 新增</button><button class="btn" id="bUp">⬆ 上傳／匯入</button><button class="btn" id="bRef">↻</button></div>
+  <div class="list" id="list"><div class="empty">載入中…</div></div></div>`;
+ const parts=dir?dir.split('/'):[];
+ $('#crumbs').innerHTML=`<a data-d="">☁ 雲端硬碟</a>`+parts.map((p,i)=>` / <a data-d="${esc(parts.slice(0,i+1).join('/'))}">${esc(p)}</a>`).join('');
+ $('#crumbs').querySelectorAll('a').forEach(a=>a.onclick=()=>go(hDrive(a.dataset.d)));
+ $('#bNew').onclick=e=>menu(e.currentTarget,[...Object.entries(TYPES).map(([k,t])=>[`${t.tag}　${t.name}`,()=>newFile(k,dir)]),['📁　資料夾',()=>newFolder(dir)]]);
+ $('#bUp').onclick=()=>{$('#upl').dataset.dir=dir;$('#upl').click()};
+ $('#bRef').onclick=()=>showDrive(dir);
+ let items;
+ try{items=await FS().list(dir)}catch(e){$('#list').innerHTML=`<div class="empty">讀取失敗：${esc(e.message)}</div>`;return}
+ items.sort((a,b)=>(a.type!==b.type?(a.type==='dir'?-1:1):a.name.localeCompare(b.name,'zh-Hant')));
+ const render=()=>{
+  const q=$('#q').value.trim().toLowerCase();const v=items.filter(i=>!q||i.name.toLowerCase().includes(q));
+  $('#list').innerHTML=v.length?v.map((it,idx)=>{const t=it.type==='file'?typeOf(it.name):null;
+   const ic=it.type==='dir'?'<span class="ico dir">📁</span>':`<span class="ico" style="background:${t?TYPES[t].color:'#888'}">${t?TYPES[t].tag:'?'}</span>`;
+   const sz=it.size!=null&&it.type==='file'?(it.size>1024?(it.size/1024).toFixed(1)+' KB':it.size+' B'):'';
+   return `<div class="item" data-i="${items.indexOf(it)}">${ic}<span class="nm">${esc(it.type==='dir'?it.name:baseName(it.name))}</span><span class="meta">${t?TYPES[t].name:(it.type==='dir'?'資料夾':'不支援')} ${sz}</span><button class="more" data-m="${items.indexOf(it)}">⋯</button></div>`}).join(''):'<div class="empty">這裡還沒有檔案。按「＋ 新增」開始。</div>';
+  $('#list').querySelectorAll('.item').forEach(el=>el.onclick=e=>{if(e.target.closest('.more'))return;const it=items[+el.dataset.i];if(it.type==='dir')go(hDrive(it.path));else if(typeOf(it.name))go(hFile(it.path));else toast('此檔案類型無法在這裡編輯')});
+  $('#list').querySelectorAll('.more').forEach(b=>b.onclick=e=>{e.stopPropagation();const it=items[+b.dataset.m];
+   menu(b,it.type==='dir'?[['刪除資料夾',()=>delItem(it,dir)]]:[['重新命名',()=>renameItem(it,dir)],['下載',()=>dlItem(it)],['刪除',()=>delItem(it,dir)]])});
+ };
+ $('#q').oninput=render;render();
+}
+async function newFile(type,dir){
+ const t=TYPES[type];const n=await askText('新增'+t.name,t.def);if(!n)return;
+ const p=join(dir,safeName(n)+t.ext);
+ try{await FS().create(p,t.tpl);go(hFile(p))}catch(e){toast(e.message)}
+}
+async function newFolder(dir){const n=await askText('新資料夾名稱','新資料夾');if(!n)return;try{await FS().mkdir(join(dir,safeName(n)));showDrive(dir)}catch(e){toast(e.message)}}
+async function renameItem(it,dir){
+ const t=typeOf(it.name),ext=it.name.slice(baseName(it.name).length);const n=await askText('重新命名',baseName(it.name));if(!n)return;
+ const np=join(dir,safeName(n)+ext);if(np===it.path)return;
+ try{const r=await FS().read(it.path);await FS().create(np,r.content);await FS().remove(it.path,r.sha);dropRecent(it.path);showDrive(dir)}catch(e){toast(e.message)}
+}
+async function dlItem(it){try{const r=await FS().read(it.path);download(it.name,r.content)}catch(e){toast(e.message)}}
+async function delItem(it,dir){
+ if(!confirm(`確定刪除「${it.name}」？${isGH()?'\n（Git 會保留歷史，可從 commit 復原）':'\n此動作無法復原。'}`))return;
+ try{it.type==='dir'?await rmDir(it.path):await FS().remove(it.path,it.sha);dropRecent(it.path);toast('已刪除');showDrive(dir)}catch(e){toast(e.message)}
+}
+/* 匯入 */
+$('#upl').onchange=async e=>{
+ const dir=e.target.dataset.dir||'';let n=0;
+ for(const f of e.target.files){
+  const l=f.name.toLowerCase();let type,content,base=f.name.replace(/\.[^.]+$/,'');
+  try{
+   if(l.endsWith('.docx')){type='doc';content=clean((await mammoth.convertToHtml({arrayBuffer:await f.arrayBuffer()})).value)}
+   else if(/\.(xlsx|xls)$/.test(l)){type='sheet';content=JSON.stringify(xlsxToXs(XLSX.read(await f.arrayBuffer())))}
+   else if(l.endsWith('.csv')){type='sheet';content=JSON.stringify(xlsxToXs(XLSX.read(await f.text(),{type:'string'})))}
+   else if(/\.html?$/.test(l)){type='doc';content=clean(await f.text())}
+   else if(l.endsWith('.slides.md')){type='slide';content=await f.text();base=base.replace(/\.slides$/,'')}
+   else if(/\.(md|txt)$/.test(l)){type='note';content=await f.text()}
+   else{toast('略過不支援：'+f.name);continue}
+   await FS().create(join(dir,safeName(base)+TYPES[type].ext),content);n++;
+  }catch(err){toast(f.name+'：'+err.message)}
+ }
+ e.target.value='';if(n)toast(`已匯入 ${n} 個檔案`);showDrive(dir);
+};
+function xlsxToXs(wb){return wb.SheetNames.map(n=>{const aoa=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:''});const rows={};
+ aoa.forEach((r,i)=>{const cells={};r.forEach((v,j)=>{if(v!=='')cells[j]={text:String(v)}});if(Object.keys(cells).length)rows[i]={cells}});return{name:n,rows}})}
+function xsToWb(data){const wb=XLSX.utils.book_new();(Array.isArray(data)?data:[data]).forEach((d,i)=>{const ws={};let mr=0,mc=0;
+ Object.entries(d.rows||{}).forEach(([r,row])=>{if(r==='len')return;Object.entries(row.cells||{}).forEach(([c,cell])=>{const t=cell.text;if(t===undefined||t==='')return;const a=XLSX.utils.encode_cell({r:+r,c:+c});
+  if(typeof t==='string'&&t[0]==='=')ws[a]={t:'n',f:t.slice(1)};else if(String(t).trim()!==''&&!isNaN(t))ws[a]={t:'n',v:Number(t)};else ws[a]={t:'s',v:String(t)};
+  mr=Math.max(mr,+r);mc=Math.max(mc,+c)})});
+ ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:mr,c:mc}});XLSX.utils.book_append_sheet(wb,ws,(d.name||'Sheet'+(i+1)).slice(0,31))});return wb}
+
+/* ========== 編輯器外殼 ========== */
+let cur=null;
+async function openFile(path){
+ setNav('drive');const name=path.split('/').pop(),type=typeOf(name);
+ if(!type){toast('不支援的檔案類型');return go(hDrive(dirOf(path)))}
+ main.innerHTML='<div class="center">載入中…</div>';
+ let r;try{r=await FS().read(path)}catch(e){toast(e.message);dropRecent(path);return go(hDrive(dirOf(path)))}
+ pushRecent(path);
+ const t=TYPES[type];
+ main.innerHTML=`<div class="ehead"><button class="btn" id="eBack">←</button><span class="ico" style="background:${t.color};width:28px;height:28px;font-size:14px">${t.tag}</span><span class="ttl">${esc(baseName(name))}</span><span class="st" id="eSt">已載入</span><span id="eExtra" style="display:contents"></span>${isGH()?'<button class="btn" id="eHist">⟲ 歷史</button>':''}<button class="btn" id="eExp">匯出 ▾</button><button class="btn pri" id="eSave">儲存</button></div><div class="ebody" id="eBody"></div>`;
+ const c={path,name,type,sha:r.sha,dirty:false,saving:false,again:false,timer:null,ed:null};cur=c;
+ const touch=()=>{c.dirty=true;setStatus('編輯中…');clearTimeout(c.timer);c.timer=setTimeout(()=>saveNow(),isGH()?3000:800)};
+ try{
+  c.ed=({doc:mountDoc,sheet:mountSheet,slide:(e,x,t2)=>mountMd(e,x,t2,'slide',name),note:(e,x,t2)=>mountMd(e,x,t2,'note',name)})[type]($('#eBody'),r.content,touch,$('#eExtra'));
+ }catch(e){main.innerHTML=`<div class="center">編輯器載入失敗（可能離線，無法載入 CDN 元件）：${esc(e.message)}</div>`;cur=null;return}
+ $('#eBack').onclick=()=>go(hDrive(dirOf(path)));
+ $('#eSave').onclick=()=>saveNow(true);
+ $('#eExp').onclick=e=>menu(e.currentTarget,c.ed.exports(baseName(name)));
+ if($('#eHist'))$('#eHist').onclick=()=>showHistory(c);
+}
+function setStatus(s){const e=$('#eSt');if(e)e.textContent=s}
+async function saveNow(manual){
+ const c=cur;if(!c)return;if(!c.dirty&&!manual)return;
+ if(c.saving){c.again=true;return}
+ clearTimeout(c.timer);c.saving=true;c.dirty=false;setStatus('儲存中…');
+ const content=c.ed.getContent();
+ try{const r=await FS().write(c.path,content,c.sha,'Update '+c.name+' via GitOffice');c.sha=r.sha;setStatus('已儲存 '+new Date().toLocaleTimeString('zh-TW',{hour12:false}))}
+ catch(e){c.dirty=true;
+  if(e.status===409||e.status===422){await resolveConflict(c,content)}
+  else{setStatus('⚠ 儲存失敗');toast(e.message)}}
+ c.saving=false;if(c.again){c.again=false;if(c.dirty)saveNow()}
+}
+async function resolveConflict(c,content){
+ try{
+  const over=confirm('雲端上的這份檔案已被其他裝置或提交更新。\n\n按「確定」＝用目前內容覆蓋雲端版本\n按「取消」＝改載入雲端最新版本（捨棄目前未儲存的變更）');
+  const r=await FS().read(c.path);
+  if(over){const w=await FS().write(c.path,content,r.sha,'Update '+c.name+' (overwrite) via GitOffice');c.sha=w.sha;c.dirty=false;setStatus('已覆蓋並儲存')}
+  else{c.sha=r.sha;c.ed.setContent(r.content);c.dirty=false;setStatus('已載入雲端最新版本')}
+ }catch(e){setStatus('⚠ 儲存失敗');toast(e.message)}
+}
+async function closeEditor(){
+ if(!cur)return;const c=cur;clearTimeout(c.timer);
+ while(c.saving)await sleep(100);
+ if(c.dirty)await saveNow(true);
+ while(c.saving)await sleep(100);
+ try{c.ed.destroy&&c.ed.destroy()}catch{}
+ cur=null;
+}
+addEventListener('beforeunload',e=>{if(cur&&(cur.dirty||cur.saving)){e.preventDefault();e.returnValue=''}});
+addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&cur){e.preventDefault();saveNow(true)}});
+async function showHistory(c){
+ const d=$('#dlgHist'),l=$('#histList');l.textContent='載入中…';d.showModal();
+ try{const h=await G.history(c.path);if(!h.length){l.textContent='沒有歷史紀錄';return}
+  l.innerHTML=h.map((x,i)=>`<button data-s="${x.sha}"><b>${esc(x.commit.message.split('\n')[0])}</b><small>${esc(x.commit.author?.name||'')} · ${new Date(x.commit.author?.date).toLocaleString('zh-TW')} · ${x.sha.slice(0,7)}</small></button>`).join('');
+  l.querySelectorAll('button').forEach(b=>b.onclick=async()=>{
+   if(!confirm('把這個歷史版本載入編輯器？\n（確認後會以新的一次 commit 儲存，不會改寫歷史）'))return;
+   try{const r=await G.read(c.path,b.dataset.s);c.ed.setContent(r.content);c.dirty=true;d.close();saveNow(true)}catch(e){toast(e.message)}})
+ }catch(e){l.textContent='讀取失敗：'+e.message}
+}
+
+/* ========== 文件編輯器（Quill） ========== */
+function mountDoc(el,content,touch){
+ if(typeof Quill==='undefined')throw new Error('Quill 未載入');
+ el.innerHTML='<div class="docwrap"><div id="qed"></div><div class="foot" id="wc"></div></div>';
+ const q=new Quill($('#qed',el),{theme:'snow',placeholder:'開始輸入…',modules:{toolbar:[[{header:[1,2,3,false]},{size:['small',false,'large','huge']}],['bold','italic','underline','strike'],[{color:[]},{background:[]}],[{list:'ordered'},{list:'bullet'},{indent:'-1'},{indent:'+1'}],[{align:[]}],['blockquote','code-block','link','image'],['clean']]}});
+ const set=h=>q.setContents(q.clipboard.convert({html:clean(h||'')}),'silent');
+ set(content);
+ const wc=()=>{const t=q.getText().trim();$('#wc',el).textContent=`字元 ${t.length} · 詞數 ${t?t.split(/\s+/).length:0}`};wc();
+ q.on('text-change',(d,o,src)=>{wc();if(src!=='silent')touch()});
+ return{getContent:()=>q.root.innerHTML,setContent:h=>{set(h);wc()},
+  exports:n=>[['下載 Word 相容檔 (.doc)',()=>download(n+'.doc',`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>${esc(n)}</title></head><body>${q.root.innerHTML}</body></html>`,'application/msword')],
+   ['下載 HTML',()=>download(n+'.html',`<!doctype html><meta charset="utf-8"><title>${esc(n)}</title><body style="max-width:800px;margin:2em auto;font:16px/1.7 sans-serif">${q.root.innerHTML}</body>`,'text/html')],
+   ['列印／存成 PDF',()=>window.print()]]};
+}
+
+/* ========== 試算表（x-spreadsheet + SheetJS） ========== */
+function mountSheet(el,content,touch){
+ if(typeof x_spreadsheet==='undefined')throw new Error('x-spreadsheet 未載入');
+ try{x_spreadsheet.locale('zh-cn')}catch{}
+ el.innerHTML='';const box=document.createElement('div');box.style.cssText='position:absolute;inset:0;overflow:hidden';el.append(box);
+ const xs=x_spreadsheet(box,{mode:'edit',showToolbar:true,showGrid:true,showContextmenu:true,view:{height:()=>box.clientHeight,width:()=>box.clientWidth}});
+ const parse=c=>{try{const d=JSON.parse(c);return Array.isArray(d)?d:[d]}catch{return[{name:'工作表1'}]}};
+ xs.loadData(parse(content));xs.change(()=>touch());
+ const rs=()=>{try{xs.reRender()}catch{}};addEventListener('resize',rs);
+ return{getContent:()=>JSON.stringify(xs.getData()),setContent:c=>xs.loadData(parse(c)),destroy:()=>removeEventListener('resize',rs),
+  exports:n=>[['下載 Excel (.xlsx)',()=>XLSX.writeFile(xsToWb(xs.getData()),n+'.xlsx')],['下載 CSV（第一個工作表）',()=>{const ws=xsToWb(xs.getData()).Sheets[xs.getData()[0].name.slice(0,31)||'Sheet1'];download(n+'.csv','\ufeff'+XLSX.utils.sheet_to_csv(ws),'text/csv')}],['下載原始 JSON',()=>download(n+'.sheet.json',JSON.stringify(xs.getData()),'application/json')]]};
+}
+
+/* ========== 簡報／筆記（Markdown + marked） ========== */
+const splitSlides=s=>s.split(/\r?\n[ \t]*-{3,}[ \t]*\r?\n/).map(x=>x.trim()?x:x);
+function slideHTML(s,i,theme){const first=s.trim().startsWith('# ');return `<section class="slide ${theme} ${first?'title':''}"><div class="sc">${md(s)}</div><span class="sn">${i+1}</span></section>`}
+function mountMd(el,content,touch,kind,name){
+ const isS=kind==='slide';let theme=localStorage.getItem('go-slide-theme')||'light';
+ el.innerHTML=`<div class="split" data-pane="edit"><div class="mdtools">
+  <button class="btn" data-i="**|**|粗體">B</button><button class="btn" data-i="*|*|斜體"><i>I</i></button><button class="btn" data-i="\n## |\n|標題">H</button><button class="btn" data-i="\n- |\n|項目">• 清單</button><button class="btn" data-i="[|](https://)|連結">🔗</button><button class="btn" data-i="![|](https://)|圖片說明">🖼</button><button class="btn" data-i="\n\`\`\`\n|\n\`\`\`\n|程式碼">{ }</button>
+  ${isS?`<button class="btn" data-i="\n\n---\n\n||">＋ 新投影片</button><select id="thm"><option value="light">淺色</option><option value="dark">深色</option><option value="brand">漸層</option></select><button class="btn pri" id="play">▶ 播放</button>`:''}
+  </div><div class="panes"><textarea id="mdIn" spellcheck="false"></textarea><div id="mdOut" class="preview ${isS?'slides':''}"></div></div>
+  <div class="paneTabs"><button data-p="edit" class="on">編輯</button><button data-p="view">預覽</button></div></div>`;
+ const inp=$('#mdIn',el),out=$('#mdOut',el),sp=$('.split',el);inp.value=content;
+ let rt;const render=()=>{out.innerHTML=isS?splitSlides(inp.value).map((s,i)=>slideHTML(s,i,theme)).join(''):`<article class="md">${md(inp.value)}</article>`};render();
+ inp.oninput=()=>{touch();clearTimeout(rt);rt=setTimeout(render,150)};
+ el.querySelectorAll('.paneTabs button').forEach(b=>b.onclick=()=>{sp.dataset.pane=b.dataset.p;el.querySelectorAll('.paneTabs button').forEach(x=>x.classList.toggle('on',x===b))});
+ el.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{const[a,z,ph]=b.dataset.i.split('|');const s=inp.selectionStart,e=inp.selectionEnd,sel=inp.value.slice(s,e)||ph||'';
+  inp.setRangeText(a+sel+z,s,e,'select');inp.focus();inp.oninput()});
+ if(isS){const th=$('#thm',el);th.value=theme;th.onchange=()=>{theme=th.value;localStorage.setItem('go-slide-theme',theme);render()};$('#play',el).onclick=()=>present(splitSlides(inp.value),theme)}
+ const ex=n=>{const a=[['下載 Markdown (.md)',()=>download(n+'.md',inp.value,'text/markdown')]];
+  if(isS)a.push(['下載 reveal.js 簡報 (.html)',()=>download(n+'.html',revealDoc(n,inp.value),'text/html')]);
+  else a.push(['下載 HTML',()=>download(n+'.html',`<!doctype html><meta charset="utf-8"><title>${esc(n)}</title><body style="max-width:820px;margin:2em auto;font:16px/1.7 sans-serif;padding:0 16px">${md(inp.value)}</body>`,'text/html')],['列印／存成 PDF',()=>{const w=open('','_blank');if(w){w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(n)}</title><body style="max-width:820px;margin:2em auto;font:16px/1.7 sans-serif">${md(inp.value)}</body>`);w.document.close();setTimeout(()=>w.print(),400)}}]);return a};
+ return{getContent:()=>inp.value,setContent:c=>{inp.value=c;render()},exports:ex};
+}
+function revealDoc(name,src){const cdn='https://cdn.jsdelivr.net/npm/reveal.js@5.1.0';
+ return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)}</title><link rel="stylesheet" href="${cdn}/dist/reveal.css"><link rel="stylesheet" href="${cdn}/dist/theme/white.css"></head><body><div class="reveal"><div class="slides"><section data-markdown data-separator="^\\r?\\n---\\r?\\n$"><textarea data-template>\n${src.replace(/<\/textarea/gi,'&lt;/textarea')}\n</textarea></section></div></div><script src="${cdn}/dist/reveal.js"><\/script><script src="${cdn}/plugin/markdown/markdown.js"><\/script><script>Reveal.initialize({hash:true,plugins:[RevealMarkdown]})<\/script></body></html>`}
+function present(slides,theme){
+ let i=0;const ov=document.createElement('div');ov.className='present';
+ ov.innerHTML='<div id="ps" style="display:contents"></div><div class="pbar"><button id="pp">◀</button><button id="pn">▶</button><button id="px">✕</button></div>';
+ document.body.append(ov);
+ const show=()=>{$('#ps',ov).innerHTML=slideHTML(slides[i],i,theme)};show();
+ const next=()=>{if(i<slides.length-1){i++;show()}},prev=()=>{if(i>0){i--;show()}};
+ const close=()=>{removeEventListener('keydown',key);document.removeEventListener('fullscreenchange',fs);ov.remove();if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})};
+ const key=e=>{if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next()}else if(['ArrowLeft','PageUp','Backspace'].includes(e.key)){e.preventDefault();prev()}else if(e.key==='Escape')close()};
+ const fs=()=>{if(!document.fullscreenElement)close()};
+ addEventListener('keydown',key);
+ $('#pn',ov).onclick=e=>{e.stopPropagation();next()};$('#pp',ov).onclick=e=>{e.stopPropagation();prev()};$('#px',ov).onclick=e=>{e.stopPropagation();close()};
+ ov.onclick=e=>{e.clientX<innerWidth/3?prev():next()};
+ let sx=0;ov.ontouchstart=e=>sx=e.touches[0].clientX;ov.ontouchend=e=>{const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>40){dx<0?next():prev();e.preventDefault()}};
+ if(ov.requestFullscreen)ov.requestFullscreen().then(()=>document.addEventListener('fullscreenchange',fs)).catch(()=>{});
+}
+
+/* ========== 設定對話框 ========== */
+function openSettings(){
+ const d=$('#dlgSet');
+ d.querySelector(`[name=mode][value=${cfg.mode}]`).checked=true;
+ $('#fOwner').value=cfg.owner;$('#fRepo').value=cfg.repo;$('#fBranch').value=cfg.branch;$('#fRoot').value=cfg.root;$('#fToken').value=cfg.token;$('#fRemember').checked=!!cfg.remember;$('#testRes').style.display='none';
+ syncMode();d.showModal();
+}
+const formMode=()=>d$('[name=mode]:checked').value;const d$=s=>$('#dlgSet').querySelector(s);
+function syncMode(){const gh=formMode()==='github';$('#ghFields').style.display=gh?'flex':'none';$('#setTest').style.display=gh?'':'none'}
+document.querySelectorAll('[name=mode]').forEach(r=>r.onchange=syncMode);
+const readForm=()=>({mode:formMode(),owner:$('#fOwner').value.trim(),repo:$('#fRepo').value.trim().replace(/\.git$/,''),branch:$('#fBranch').value.trim()||'main',root:$('#fRoot').value.trim().replace(/^\/+|\/+$/g,''),token:$('#fToken').value.trim(),remember:$('#fRemember').checked});
+$('#setCancel').onclick=()=>$('#dlgSet').close();
+$('#setSave').onclick=()=>{const f=readForm();if(f.mode==='github'&&(!f.owner||!f.repo)){toast('請填寫帳號與儲存庫');return}Object.assign(cfg,f);persistCfg();updateChip();$('#dlgSet').close();toast('設定已儲存');route()};
+$('#setTest').onclick=async()=>{
+ const f=readForm(),bak={...cfg},box=$('#testRes');Object.assign(cfg,f);box.style.display='block';box.textContent='測試中…';
+ try{const r=await G.req(G.api());const br=await G.req(G.api()+'/branches/'+encodeURIComponent(f.branch)).then(()=>true).catch(()=>false);
+  box.innerHTML=`✔ 已連線：<b>${esc(r.full_name)}</b>（${r.private?'私人儲存庫 🔒':'<b>⚠ 公開儲存庫，文件將被公開！</b>'}）<br>寫入權限：${r.permissions?.push?'✔ 有':'✘ 無（請檢查 Token 的 Contents 權限）'}　分支 ${esc(f.branch)}：${br?'✔ 存在':'✘ 找不到'}`}
+ catch(e){box.textContent='✘ '+e.message+(e.status===404?'（儲存庫不存在，或 Token 沒有權限）':'')}
+ finally{Object.assign(cfg,bak)}
+};
+
+/* ========== 初始化 ========== */
+$('#menuBtn').onclick=()=>document.body.classList.toggle('nav');
+$('#scrim').onclick=()=>document.body.classList.remove('nav');
+$('#logo').onclick=()=>go('#/home');
+$('#setBtn').onclick=openSettings;
+document.querySelectorAll('aside .nav').forEach(b=>b.onclick=()=>{const n=b.dataset.nav;document.body.classList.remove('nav');n==='settings'?openSettings():go(n==='home'?'#/home':'#/drive')});
+function applyTheme(t){document.documentElement.dataset.theme=t;localStorage.setItem('go-theme',t)}
+applyTheme(localStorage.getItem('go-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));
+$('#themeBtn').onclick=()=>applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
+updateChip();route();
+</script>
+</body>
+</html>
